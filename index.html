@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Commissions Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #f0f2f5;
+    --navy-mid: #e4e7ec;
+    --navy-light: #d5d9e2;
+    --gold: #1D4ED8;
+    --gold-light: #2563EB;
+    --teal: #0f5b8c;
+    --red: #C41E3A;
+    --green: #1a5c3a;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --border: rgba(15,23,42,0.1);
+    --card-bg: #ffffff;
+    --accent-niia: #1D4ED8;
+    --accent-siia: #C41E3A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header {
+    background: #ffffff;
+    border-bottom: 3px solid #1D4ED8;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: 0.3px;
+  }
+  .header-left p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .upload-btn-wrap { display: flex; align-items: center; gap: 12px; }
+  .upload-btn {
+    background: #1D4ED8;
+    color: #ffffff;
+    border: none;
+    padding: 9px 20px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: flex; align-items: center; gap: 8px;
+    letter-spacing: 0.5px;
+  }
+  .upload-btn:hover { background: #2563EB; }
+  #file-status { font-size: 12px; color: var(--text-muted); }
+
+  /* TABS */
+  .tab-bar {
+    display: flex;
+    background: #ffffff;
+    border-bottom: 1px solid rgba(15,23,42,0.1);
+    padding: 0 24px;
+    overflow-x: auto;
+    gap: 0;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: #64748b;
+    padding: 14px 22px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+    letter-spacing: 0.4px;
+  }
+  .tab-btn:hover { color: #0f172a; }
+  .tab-btn.active { color: #1D4ED8; border-bottom-color: #1D4ED8; }
+
+  /* CONTENT */
+  .content { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* METRIC CARDS */
+  .cards-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid rgba(15,23,42,0.08);
+    border-radius: 10px;
+    padding: 20px 22px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  }
+  .card-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .card-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+  }
+  .card-value.green { color: var(--green); }
+  .card-value.gold { color: var(--gold); }
+  .card-value.teal { color: var(--teal); }
+  .card-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+  .card-sub.red { color: var(--red); }
+  .card-sub.green { color: var(--green); }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #0f172a;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #1D4ED8;
+  }
+
+  /* TABLES */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    background: #e4e7ec;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid rgba(15,23,42,0.1);
+  }
+  thead th.right { text-align: right; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: rgba(0,0,0,0.02); }
+  tbody td { padding: 10px 14px; color: var(--text); vertical-align: middle; }
+  tbody td.right { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody td.muted { color: var(--text-muted); font-size: 12px; }
+  tbody td.green { color: var(--green); }
+  tbody td.red { color: var(--red); }
+  tbody td.gold { color: var(--gold); font-weight: 600; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .badge-new { background: rgba(45,212,191,0.15); color: var(--teal); }
+  .badge-p { background: rgba(232,168,32,0.15); color: var(--gold); }
+  .badge-c { background: rgba(96,165,250,0.15); color: #60a5fa; }
+
+  /* GRID LAYOUT */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
+  @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } .content { padding: 16px; } }
+
+  .chart-box {
+    background: var(--card-bg);
+    border: 1px solid rgba(15,23,42,0.08);
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  }
+  .chart-box .section-title { margin-bottom: 18px; }
+
+  /* BAR CHART */
+  .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 12px; }
+  .bar-label { font-size: 12px; color: var(--text-muted); width: 70px; text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; background: rgba(0,0,0,0.07); border-radius: 4px; height: 22px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; display: flex; align-items: center; padding-left: 8px; }
+  .bar-fill span { font-size: 11px; font-weight: 700; color: #ffffff; white-space: nowrap; }
+
+  /* GOAL GAUGE */
+  .goal-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .goal-pct { font-size: 13px; font-weight: 700; }
+  .goal-track { background: rgba(0,0,0,0.07); border-radius: 2px; height: 10px; margin-bottom: 6px; overflow: hidden; }
+  .goal-fill { height: 100%; border-radius: 2px; }
+
+  /* WEEKLY TABLE */
+  .weekly-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  @media (max-width: 700px) { .weekly-row { grid-template-columns: 1fr; } }
+  .wk-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .wk-label { font-size: 11px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .wk-value { font-size: 20px; font-weight: 800; }
+
+  /* UPLOAD DROP ZONE */
+  .drop-zone {
+    border: 2px dashed var(--gold);
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    background: rgba(180,83,9,0.04);
+    margin-bottom: 28px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .drop-zone:hover { background: rgba(180,83,9,0.08); }
+  .drop-zone h3 { color: var(--gold); margin-bottom: 8px; }
+  .drop-zone p { color: var(--text-muted); font-size: 13px; }
+  input[type=file] { display: none; }
+
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+  /* PIN LOCK SCREEN */
+  .lock-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 420px;
+    text-align: center;
+  }
+  .lock-icon { font-size: 52px; margin-bottom: 16px; }
+  .lock-title { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+  .lock-sub { font-size: 14px; color: #64748b; margin-bottom: 28px; }
+  .pin-dots { display: flex; gap: 12px; justify-content: center; margin-bottom: 24px; }
+  .pin-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid #1D4ED8; background: transparent;
+    transition: background 0.15s;
+  }
+  .pin-dot.filled { background: #1D4ED8; }
+  .pin-pad {
+    display: grid; grid-template-columns: repeat(3, 64px);
+    gap: 10px; margin-bottom: 16px;
+  }
+  .pin-key {
+    width: 64px; height: 64px; border-radius: 50%;
+    border: 2px solid #e4e7ec; background: #fff;
+    font-size: 20px; font-weight: 700; color: #0f172a;
+    cursor: pointer; transition: all 0.1s;
+  }
+  .pin-key:hover { background: #dbeafe; border-color: #1D4ED8; color: #1D4ED8; }
+  .pin-key:active { transform: scale(0.94); }
+  .pin-key.clear { font-size: 13px; font-weight: 600; color: #64748b; border-color: transparent; background: transparent; }
+  .pin-error { font-size: 13px; color: #C41E3A; font-weight: 600; min-height: 20px; margin-top: 4px; }
+
+  /* HERO CARD — bright true blue */
+  .hero-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .hero-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 10px;
+  }
+  .hero-value {
+    font-size: 44px;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+  .hero-value.teal { color: #ffffff; }
+  .hero-sub { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 8px; }
+  .hero-card { background: #1565C0; border: 2px solid #0D47A1; border-radius: 4px; padding: 28px 32px; box-shadow: 4px 4px 0 #0D47A1; }
+  @media (max-width: 600px) { .hero-row { grid-template-columns: 1fr; } .hero-value { font-size: 32px; } }
+
+  /* NIIA = true cobalt blue, SIIA = true crimson red */
+  .card-value.niia { color: #1D4ED8; }
+  .card-value.siia { color: #C41E3A; }
+  .card.niia-card { border-color: #1D4ED8; border-width: 2px; border-radius: 4px; box-shadow: 3px 3px 0 #1D4ED8; }
+  .card.siia-card { border-color: #C41E3A; border-width: 2px; border-radius: 4px; box-shadow: 3px 3px 0 #C41E3A; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>📊 Weekly Commissions Dashboard</h1>
+    <p id="last-updated">Using built-in data — drop an Excel file to refresh</p>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div id="drop-zone" onclick="document.getElementById('xlsx-input').click()"
+      style="border:2px dashed #1D4ED8;border-radius:6px;padding:10px 20px;
+             display:flex;align-items:center;gap:12px;cursor:pointer;background:#f0f6ff;
+             transition:background 0.15s,border-color 0.15s;">
+      <div style="font-size:22px;line-height:1;">📂</div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#1D4ED8;">Drop Excel here or click to browse</div>
+        <div id="drop-status" style="font-size:12px;color:#64748b;margin-top:2px;">Accepts .xlsx or .xls</div>
+      </div>
+      <span id="file-status" style="font-size:12px;font-weight:600;color:#1D4ED8;margin-left:8px;"></span>
+      <input type="file" id="xlsx-input" accept=".xlsx,.xls" onchange="handleFileUpload(event)" style="display:none;">
+    </div>
+    <button onclick="downloadDashboard()"
+      style="background:#1D4ED8;color:#fff;border:none;border-radius:6px;padding:10px 20px;
+             font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;
+             gap:8px;letter-spacing:0.4px;transition:background 0.15s;white-space:nowrap;"
+      onmouseover="this.style.background='#2563EB'" onmouseout="this.style.background='#1D4ED8'">
+      ⬇ Download
+    </button>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="ytd-sales" onclick="showTab('ytd-sales', this)">YTD Sales</button>
+  <button class="tab-btn" data-tab="comm" onclick="showTab('comm', this)">Commercial Lines</button>
+  <button class="tab-btn" data-tab="pers" onclick="showTab('pers', this)">Personal Lines</button>
+  <button class="tab-btn" data-tab="james" onclick="showTab('james', this)">🔒 James</button>
+  <button class="tab-btn" data-tab="krista" onclick="showTab('krista', this)">🔒 Krista</button>
+  <button class="tab-btn" data-tab="ambur" onclick="showTab('ambur', this)">🔒 Ambur</button>
+</div>
+
+<div class="content">
+
+  <!-- YTD SALES TAB -->
+  <div class="tab-panel active" id="panel-ytd-sales">
+    <div id="ytd-hero"></div>
+    <div class="cards-row" id="ytd-sub-cards"></div>
+    <div class="cards-row" id="ytd-retention-cards"></div>
+    <div class="two-col">
+      <div class="chart-box" style="grid-column: 1 / -1;">
+        <div class="section-title">Total Monthly Sales — NIIA + SIIA Combined</div>
+        <canvas id="monthly-bar-chart" height="220"></canvas>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="chart-box" style="grid-column: 1 / -1;">
+        <div class="section-title">YTD vs Annual Goal</div>
+        <div id="goal-gauges"></div>
+      </div>
+    </div>
+    <div class="section-title">Monthly Breakdown</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th colspan="5" style="background:#dbeafe;color:#1D4ED8;text-align:center;border-bottom:2px solid #1D4ED8;">NIIA</th>
+            <th style="background:#f0f2f5;width:6px;padding:0;border:none;"></th>
+            <th colspan="3" style="background:#ffe4e8;color:#C41E3A;text-align:center;border-bottom:2px solid #C41E3A;">SIIA</th>
+          </tr>
+          <tr>
+            <th>Month</th>
+            <th class="right">PERS</th>
+            <th class="right">COMM</th>
+            <th class="right">Total NIIA</th>
+            <th class="right">NIIA Goal</th>
+            <th style="background:#f0f2f5;width:6px;padding:0;border:none;"></th>
+            <th class="right">SIIA Total</th>
+            <th class="right">SIIA Goal</th>
+            <th class="right">Grand Total</th>
+          </tr>
+        </thead>
+        <tbody id="ytd-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- COMM TAB -->
+  <div class="tab-panel" id="panel-comm">
+    <div id="comm-hero"></div>
+    <div class="cards-row" id="comm-cards"></div>
+    <div class="section-title">Commercial Lines — This Week's Policies</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Policy #</th>
+          <th>Insured Name</th>
+          <th>Expiry</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th class="right">Amount</th>
+        </tr></thead>
+        <tbody id="comm-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PERS TAB -->
+  <div class="tab-panel" id="panel-pers">
+    <div id="pers-hero"></div>
+    <div class="cards-row" id="pers-cards"></div>
+    <div class="section-title">Personal Lines — This Week's Policies</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Policy #</th>
+          <th>Insured Name</th>
+          <th>Expiry</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th class="right">Amount</th>
+        </tr></thead>
+        <tbody id="pers-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- KRISTA TAB -->
+  <div class="tab-panel" id="panel-krista">
+    <div id="krista-hero"></div>
+    <div class="cards-row" id="krista-cards"></div>
+    <div class="section-title">Krista — This Week's Policies</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Policy #</th>
+          <th>Insured Name</th>
+          <th>Expiry</th>
+          <th>Type</th>
+          <th class="right">Amount</th>
+        </tr></thead>
+        <tbody id="krista-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- AMBUR TAB -->
+  <div class="tab-panel" id="panel-ambur">
+    <div id="ambur-hero"></div>
+    <div class="cards-row" id="ambur-cards"></div>
+    <div class="section-title">Ambur — This Week's Policies</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Policy #</th>
+          <th>Insured Name</th>
+          <th>Expiry</th>
+          <th>Type</th>
+          <th class="right">Amount</th>
+        </tr></thead>
+        <tbody id="ambur-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- JAMES TAB -->
+  <div class="tab-panel" id="panel-james">
+    <div id="james-hero"></div>
+    <div class="cards-row" id="james-cards"></div>
+    <div class="section-title">James — This Week's Policies</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Policy #</th>
+          <th>Insured Name</th>
+          <th>Expiry</th>
+          <th>Type</th>
+          <th class="right">Amount</th>
+        </tr></thead>
+        <tbody id="james-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── Helpers ────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmt = n => n == null || isNaN(n) ? '—' : '$' + Math.round(n).toLocaleString();
+const fmtPct = n => n == null || isNaN(n) ? '—' : (n * 100).toFixed(1) + '%';
+const colorClass = n => n < 0 ? 'red' : n > 0 ? 'green' : '';
+
+// ─── PIN Configuration (change these to set your PINs) ───────────────────────
+const PINS = {
+  master: '1234',   // ← Your master PIN — unlocks ALL tabs
+  krista: '2001',   // ← Krista's PIN
+  ambur:  '2002',   // ← Ambur's PIN
+  james:  '2003',   // ← James's PIN
+};
+const LOCKED_TABS = ['krista', 'ambur', 'james'];
+const unlocked = new Set();   // tracks which tabs are unlocked this session
+
+// ─── Tab Navigation ──────────────────────────────────────────────────────────
+function showTab(id, btn) {
+  const el = btn || event?.currentTarget;
+  if (LOCKED_TABS.includes(id) && !unlocked.has(id)) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    showLockScreen(id, el);
+    return;
+  }
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  $('panel-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+}
+
+// ─── Lock Screen ─────────────────────────────────────────────────────────────
+let pinState = { tab: null, entered: '', btnEl: null };
+
+function showLockScreen(tabId, btnEl) {
+  pinState = { tab: tabId, entered: '', btnEl };
+  const nameMap = { krista: 'Krista', ambur: 'Ambur', james: 'James' };
+  const name = nameMap[tabId] || tabId;
+  $('panel-' + tabId).innerHTML = `
+    <div class="lock-screen">
+      <div class="lock-icon">🔒</div>
+      <div class="lock-title">${name}'s Tab</div>
+      <div class="lock-sub">Enter your PIN to access this tab</div>
+      <div class="pin-dots" id="pin-dots-${tabId}">
+        <div class="pin-dot" id="dot-${tabId}-0"></div>
+        <div class="pin-dot" id="dot-${tabId}-1"></div>
+        <div class="pin-dot" id="dot-${tabId}-2"></div>
+        <div class="pin-dot" id="dot-${tabId}-3"></div>
+      </div>
+      <div class="pin-pad">
+        ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="pin-key" onclick="pinPress('${tabId}','${n}')">${n}</button>`).join('')}
+        <button class="pin-key clear" onclick="pinClear('${tabId}')">Clear</button>
+        <button class="pin-key" onclick="pinPress('${tabId}','0')">0</button>
+        <button class="pin-key clear" onclick="pinBack('${tabId}')">⌫</button>
+      </div>
+      <div class="pin-error" id="pin-error-${tabId}"></div>
+    </div>`;
+  $('panel-' + tabId).classList.add('active');
+  if (btnEl) btnEl.classList.add('active');
+}
+
+function pinPress(tabId, digit) {
+  if (pinState.tab !== tabId) return;
+  if (pinState.entered.length >= 4) return;
+  pinState.entered += digit;
+  updateDots(tabId);
+  if (pinState.entered.length === 4) checkPin(tabId);
+}
+
+function pinBack(tabId) {
+  pinState.entered = pinState.entered.slice(0, -1);
+  updateDots(tabId);
+}
+
+function pinClear(tabId) {
+  pinState.entered = '';
+  updateDots(tabId);
+  $('pin-error-' + tabId).textContent = '';
+}
+
+function updateDots(tabId) {
+  for (let i = 0; i < 4; i++) {
+    const dot = $(`dot-${tabId}-${i}`);
+    if (dot) dot.classList.toggle('filled', i < pinState.entered.length);
+  }
+}
+
+const PANEL_TEMPLATES = {
+  james: `<div id="james-hero"></div><div class="cards-row" id="james-cards"></div>
+    <div class="section-title">James — This Week's Policies</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Policy #</th><th>Insured Name</th><th>Expiry</th><th>Type</th><th class="right">Amount</th></tr></thead>
+      <tbody id="james-table-body"></tbody>
+    </table></div>`,
+  krista: `<div id="krista-hero"></div><div class="cards-row" id="krista-cards"></div>
+    <div class="section-title">Krista — This Week's Policies</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Policy #</th><th>Insured Name</th><th>Expiry</th><th>Type</th><th class="right">Amount</th></tr></thead>
+      <tbody id="krista-table-body"></tbody>
+    </table></div>`,
+  ambur: `<div id="ambur-hero"></div><div class="cards-row" id="ambur-cards"></div>
+    <div class="section-title">Ambur — This Week's Policies</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Policy #</th><th>Insured Name</th><th>Expiry</th><th>Type</th><th class="right">Amount</th></tr></thead>
+      <tbody id="ambur-table-body"></tbody>
+    </table></div>`,
+};
+
+function checkPin(tabId) {
+  const entered = pinState.entered;
+  const isMaster = entered === PINS.master;
+  const isOwn = entered === PINS[tabId];
+  if (isMaster || isOwn) {
+    if (isMaster) {
+      LOCKED_TABS.forEach(t => unlocked.add(t));
+    } else {
+      unlocked.add(tabId);
+    }
+    // Remove lock icons from newly-unlocked tab buttons by data-tab attribute
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      const t = b.getAttribute('data-tab');
+      if (t && unlocked.has(t)) {
+        b.textContent = b.textContent.replace('🔒 ', '');
+      }
+    });
+    // Restore panel HTML then render each unlocked tab
+    const d = window._lastData || SEED;
+    if (unlocked.has('james'))  { $('panel-james').innerHTML  = PANEL_TEMPLATES.james;  renderJames(d); }
+    if (unlocked.has('krista')) { $('panel-krista').innerHTML = PANEL_TEMPLATES.krista; renderKrista(d); }
+    if (unlocked.has('ambur'))  { $('panel-ambur').innerHTML  = PANEL_TEMPLATES.ambur;  renderAmbur(d); }
+    // Now navigate to the requested tab
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    $('panel-' + tabId).classList.add('active');
+    if (pinState.btnEl) pinState.btnEl.classList.add('active');
+  } else {
+    $('pin-error-' + tabId).textContent = 'Incorrect PIN — try again';
+    pinState.entered = '';
+    setTimeout(() => updateDots(tabId), 80);
+    setTimeout(() => {
+      updateDots(tabId);
+      if ($('pin-error-' + tabId)) $('pin-error-' + tabId).textContent = '';
+    }, 800);
+  }
+}
+
+function card(label, value, cls='', sub='', subCls='') {
+  return `<div class="card">
+    <div class="card-label">${label}</div>
+    <div class="card-value ${cls}">${value}</div>
+    ${sub ? `<div class="card-sub ${subCls}">${sub}</div>` : ''}
+  </div>`;
+}
+
+function policyRow(row, type) {
+  const policy = row[1] || '';
+  const name = row[3] || '';
+  const expiry = row[4] ? (typeof row[4] === 'number' ? new Date(Math.round((row[4] - 25569) * 86400 * 1000)).toLocaleDateString() : String(row[4]).split('T')[0].split(' ')[0]) : '';
+  const t = row[5] || '';
+  const status = row[6] || 'New';
+  const amt = parseFloat(row[7]);
+  const amtStr = fmt(amt);
+  return `<tr>
+    <td class="muted">${policy}</td>
+    <td>${name}</td>
+    <td class="muted">${expiry}</td>
+    <td class="muted">${t}</td>
+    ${type ? `<td><span class="badge badge-new">${status}</span></td>` : ''}
+    <td class="right ${amt < 0 ? 'red' : ''}">${amtStr}</td>
+  </tr>`;
+}
+
+// ─── Parse Excel Data ────────────────────────────────────────────────────────
+function parseWorkbook(wb) {
+  const getSheet = name => wb.Sheets[name] ? XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, defval: null}) : null;
+
+  // --- YTD SALES ---
+  const ytdRaw = getSheet('Sales by person');
+  const ytdData = [];
+  if (ytdRaw) {
+    for (let i = 4; i <= 15; i++) {
+      const r = ytdRaw[i];
+      if (!r) continue;
+      const month = r[1];
+      if (!month || typeof month !== 'string') continue;
+      const pers       = parseFloat(r[2]) || 0;
+      const comm       = parseFloat(r[3]) || 0;
+      const total      = parseFloat(r[4]) || (pers + comm);  // fallback: sum pers+comm
+      const niiaGoal   = parseFloat(r[5]) || 0;
+      const james      = parseFloat(r[6]) || 0;
+      const jamesGoal  = parseFloat(r[8]) || 0;
+      const grandTotal = parseFloat(r[10]) || (total + james); // fallback: sum niia+siia
+      ytdData.push({ month, pers, comm, total, niiaGoal, james, jamesGoal, grandTotal });
+    }
+  }
+
+  const niiaRetention  = ytdRaw ? parseFloat(ytdRaw[3]?.[2]) || 0 : 0;
+  const jamesRetention = ytdRaw ? parseFloat(ytdRaw[3]?.[6]) || 0 : 0;
+  const niiaAnnualGoal  = ytdRaw ? parseFloat(ytdRaw[3]?.[5]) || 2400000 : 2400000;
+  const jamesAnnualGoal = ytdRaw ? parseFloat(ytdRaw[3]?.[8]) || 1400000 : 1400000;
+  // Pull YTD totals from the summary rows at bottom of sheet (rows 16-18) for accuracy
+  const niiaYTD  = (ytdRaw && parseFloat(ytdRaw[17]?.[2])) || ytdData.reduce((s,r) => s + r.total, 0);
+  const jamesYTD = (ytdRaw && parseFloat(ytdRaw[16]?.[6])) || ytdData.reduce((s,r) => s + r.james, 0);
+  const grandYTD = (ytdRaw && parseFloat(ytdRaw[18]?.[2])) || (niiaYTD + jamesYTD);
+
+  // --- COMM ---
+  const commRaw = getSheet('Comm.');
+  const commSummary = {
+    grossNew: commRaw ? parseFloat(commRaw[2]?.[2]) || 0 : 0,
+    backouts: commRaw ? parseFloat(commRaw[3]?.[2]) || 0 : 0,
+    netSales: commRaw ? parseFloat(commRaw[4]?.[2]) || 0 : 0,
+    retention: commRaw ? parseFloat(commRaw[5]?.[2]) || 0 : 0,
+    ytdNew: commRaw ? parseFloat(commRaw[2]?.[7]) || 0 : 0,
+    ytdBackouts: commRaw ? parseFloat(commRaw[3]?.[7]) || 0 : 0,
+    ytdSales: commRaw ? parseFloat(commRaw[4]?.[7]) || 0 : 0,
+    ytdRetention: commRaw ? parseFloat(commRaw[5]?.[7]) || 0 : 0,
+  };
+  const commPolicies = [];
+  if (commRaw) {
+    for (let i = 10; i < commRaw.length; i++) {
+      const r = commRaw[i];
+      if (!r || !r[1] || String(r[0]).startsWith('Week')) continue;
+      if (parseFloat(r[7])) commPolicies.push(r);
+    }
+  }
+
+  // --- PERS ---
+  const persRaw = getSheet('PERS.');
+  const persSummary = {
+    grossNew: persRaw ? parseFloat(persRaw[2]?.[2]) || 0 : 0,
+    backouts: persRaw ? parseFloat(persRaw[3]?.[2]) || 0 : 0,
+    netSales: persRaw ? parseFloat(persRaw[4]?.[2]) || 0 : 0,
+    retention: persRaw ? parseFloat(persRaw[5]?.[2]) || 0 : 0,
+    ytdNew: persRaw ? parseFloat(persRaw[2]?.[7]) || 0 : 0,
+    ytdBackouts: persRaw ? parseFloat(persRaw[3]?.[7]) || 0 : 0,
+    ytdSales: persRaw ? parseFloat(persRaw[4]?.[7]) || 0 : 0,
+    ytdRetention: persRaw ? parseFloat(persRaw[5]?.[7]) || 0 : 0,
+    wk1: persRaw ? parseFloat(persRaw[1]?.[10]) || 0 : 0,
+    wk2: persRaw ? parseFloat(persRaw[2]?.[10]) || 0 : 0,
+  };
+  const persPolicies = [];
+  if (persRaw) {
+    for (let i = 9; i < persRaw.length; i++) {
+      const r = persRaw[i];
+      if (!r || !r[1] || String(r[0]).startsWith('Week')) continue;
+      if (parseFloat(r[7])) persPolicies.push(r);
+    }
+  }
+
+  // --- KRISTA ---
+  const kristaRaw = getSheet('Krista');
+  const kristaSummary = {
+    grossNew: kristaRaw ? parseFloat(kristaRaw[2]?.[2]) || 0 : 0,
+    backouts: kristaRaw ? parseFloat(kristaRaw[3]?.[2]) || 0 : 0,
+    netSales: kristaRaw ? parseFloat(kristaRaw[4]?.[2]) || 0 : 0,
+    retention: kristaRaw ? parseFloat(kristaRaw[5]?.[2]) || 0 : 0,
+    ytdNew: kristaRaw ? parseFloat(kristaRaw[2]?.[7]) || 0 : 0,
+    ytdSales: kristaRaw ? parseFloat(kristaRaw[4]?.[7]) || 0 : 0,
+    ytdRetention: kristaRaw ? parseFloat(kristaRaw[5]?.[7]) || 0 : 0,
+    paycheck: kristaRaw ? parseFloat(kristaRaw[7]?.[4]) || 0 : 0,
+    newSales: kristaRaw ? parseFloat(kristaRaw[2]?.[4]) || 0 : 0,
+    salary: kristaRaw ? parseFloat(kristaRaw[3]?.[4]) || 0 : 0,
+    wk1: kristaRaw ? parseFloat(kristaRaw[2]?.[9]) || 0 : 0,
+    wk2: kristaRaw ? parseFloat(kristaRaw[3]?.[9]) || 0 : 0,
+  };
+  const kristaPolicies = [];
+  if (kristaRaw) {
+    for (let i = 9; i < kristaRaw.length; i++) {
+      const r = kristaRaw[i];
+      if (!r || !r[1] || String(r[0]).startsWith('Week')) continue;
+      if (parseFloat(r[7])) kristaPolicies.push(r);
+    }
+  }
+
+  // --- AMBUR ---
+  const amburRaw = getSheet('Ambur');
+  const amburSummary = {
+    grossNew: amburRaw ? parseFloat(amburRaw[2]?.[2]) || 0 : 0,
+    backouts: amburRaw ? parseFloat(amburRaw[3]?.[2]) || 0 : 0,
+    netSales: amburRaw ? parseFloat(amburRaw[4]?.[2]) || 0 : 0,
+    retention: amburRaw ? parseFloat(amburRaw[5]?.[2]) || 0 : 0,
+    ytdNew: amburRaw ? parseFloat(amburRaw[2]?.[7]) || 0 : 0,
+    ytdSales: amburRaw ? parseFloat(amburRaw[4]?.[7]) || 0 : 0,
+    ytdRetention: amburRaw ? parseFloat(amburRaw[5]?.[7]) || 0 : 0,
+    paycheck: amburRaw ? parseFloat(amburRaw[6]?.[4]) || 0 : 0,
+    newSales: amburRaw ? parseFloat(amburRaw[2]?.[4]) || 0 : 0,
+    wk1: amburRaw ? parseFloat(amburRaw[2]?.[10]) || 0 : 0,
+    wk2: amburRaw ? parseFloat(amburRaw[3]?.[10]) || 0 : 0,
+  };
+  const amburPolicies = [];
+  if (amburRaw) {
+    for (let i = 9; i < amburRaw.length; i++) {
+      const r = amburRaw[i];
+      if (!r || !r[1] || String(r[0]).startsWith('Week')) continue;
+      if (parseFloat(r[7])) amburPolicies.push(r);
+    }
+  }
+
+  // --- JAMES ---
+  const jamesRaw = getSheet('James');
+  const jamesSummary = {
+    grossNew: jamesRaw ? parseFloat(jamesRaw[2]?.[2]) || 0 : 0,
+    backouts: jamesRaw ? parseFloat(jamesRaw[3]?.[2]) || 0 : 0,
+    netSales: jamesRaw ? parseFloat(jamesRaw[4]?.[2]) || 0 : 0,
+    retention: jamesRaw ? parseFloat(jamesRaw[5]?.[2]) || 0 : 0,
+    renewals: jamesRaw ? parseFloat(jamesRaw[3]?.[4]) || 0 : 0,
+    ytdNew: jamesRaw ? parseFloat(jamesRaw[2]?.[7]) || 0 : 0,
+    ytdBackouts: jamesRaw ? parseFloat(jamesRaw[3]?.[7]) || 0 : 0,
+    ytdSales: jamesRaw ? parseFloat(jamesRaw[4]?.[7]) || 0 : 0,
+    ytdRetention: jamesRaw ? parseFloat(jamesRaw[5]?.[7]) || 0 : 0,
+    paycheck: jamesRaw ? parseFloat(jamesRaw[7]?.[4]) || 0 : 0,
+    newSalesPay: jamesRaw ? parseFloat(jamesRaw[6]?.[4]) || 0 : 0,
+    renewalPay: jamesRaw ? parseFloat(jamesRaw[5]?.[4]) || 0 : 0,
+    wk1: jamesRaw ? parseFloat(jamesRaw[1]?.[10]) || 0 : 0,
+    wk2: jamesRaw ? parseFloat(jamesRaw[2]?.[10]) || 0 : 0,
+  };
+  const jamesPolicies = [];
+  if (jamesRaw) {
+    for (let i = 10; i < jamesRaw.length; i++) {
+      const r = jamesRaw[i];
+      if (!r || !r[1] || String(r[0]).startsWith('Week')) continue;
+      if (parseFloat(r[7])) jamesPolicies.push(r);
+    }
+  }
+
+  return { ytdData, niiaRetention, jamesRetention, niiaAnnualGoal, jamesAnnualGoal, niiaYTD, jamesYTD, grandYTD,
+           commSummary, commPolicies, persSummary, persPolicies,
+           kristaSummary, kristaPolicies, amburSummary, amburPolicies, jamesSummary, jamesPolicies };
+}
+
+// ─── Render Functions ────────────────────────────────────────────────────────
+function render(data) {
+  window._lastData = data;
+  renderYTD(data);
+  renderComm(data);
+  renderPers(data);
+  renderKrista(data);
+  renderAmbur(data);
+  renderJames(data);
+}
+
+function renderYTD(d) {
+  const combinedRetention = (d.niiaRetention + d.jamesRetention) / 2;
+
+  // Hero: Combined YTD + Combined Retention side by side
+  $('ytd-hero').innerHTML = `<div class="hero-row">
+    <div class="hero-card">
+      <div class="hero-label">Combined Year to Date</div>
+      <div class="hero-value">${fmt(d.grandYTD)}</div>
+      <div class="hero-sub">NIIA + SIIA total new sales</div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-label">Combined Retention</div>
+      <div class="hero-value teal">${fmtPct(combinedRetention)}</div>
+      <div class="hero-sub">Average of NIIA & SIIA retention</div>
+    </div>
+  </div>`;
+
+  // Sub row: NIIA YTD + SIIA YTD — jewel tones
+  $('ytd-sub-cards').innerHTML =
+    `<div class="card niia-card"><div class="card-label">YTD NIIA Total</div><div class="card-value niia">${fmt(d.niiaYTD)}</div><div class="card-sub">NIIA (PERS + COMM)</div></div>` +
+    `<div class="card siia-card"><div class="card-label">YTD SIIA Total</div><div class="card-value siia">${fmt(d.jamesYTD)}</div><div class="card-sub">SIIA (Personal + Commercial)</div></div>`;
+
+  // Retention row
+  $('ytd-retention-cards').innerHTML =
+    `<div class="card niia-card"><div class="card-label">NIIA Retention</div><div class="card-value niia">${fmtPct(d.niiaRetention)}</div></div>` +
+    `<div class="card siia-card"><div class="card-label">SIIA Retention</div><div class="card-value siia">${fmtPct(d.jamesRetention)}</div></div>`;
+
+  // Combined bar chart: NIIA + SIIA total per month, with combined goal line
+  const allMths = d.ytdData;
+  const labels = allMths.map(r => String(r.month || '').slice(0,3));
+  const combined = allMths.map(r => r.grandTotal > 0 ? r.grandTotal : (r.total + r.james > 0 ? r.total + r.james : 0));
+  const combinedGoal = allMths.map(r => (r.niiaGoal || 0) + (r.jamesGoal || 0));
+  const barColors = combined.map((val, i) => val > 0 && combinedGoal[i] > 0
+    ? (val >= combinedGoal[i] ? '#1D4ED8' : '#93C5FD')
+    : '#DBEAFE');
+
+  if (window._monthChart) window._monthChart.destroy();
+  const ctx = $('monthly-bar-chart').getContext('2d');
+  window._monthChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Total Sales',
+          data: combined,
+          backgroundColor: barColors,
+          borderRadius: 0,
+          borderSkipped: false,
+          order: 2,
+        },
+        {
+          label: 'Monthly Goal',
+          data: combinedGoal,
+          type: 'line',
+          borderColor: '#C41E3A',
+          borderWidth: 2,
+          borderDash: [6, 3],
+          pointBackgroundColor: '#C41E3A',
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          fill: false,
+          tension: 0,
+          order: 1,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'top',
+          align: 'end',
+          labels: { boxWidth: 14, font: { size: 11, weight: '600' }, color: '#475569',
+            generateLabels: () => [
+              { text: 'Total Sales (at/above goal)', fillStyle: '#1D4ED8', strokeStyle: '#1D4ED8', lineWidth: 0 },
+              { text: 'Total Sales (below goal)', fillStyle: '#93C5FD', strokeStyle: '#93C5FD', lineWidth: 0 },
+              { text: 'Monthly Goal', fillStyle: 'transparent', strokeStyle: '#C41E3A', lineWidth: 2, lineDash: [6,3] },
+            ]
+          }
+        },
+        tooltip: {
+          bodyFont: { size: 15 },
+          titleFont: { size: 16, weight: '700' },
+          padding: 16,
+          boxPadding: 6,
+          callbacks: {
+            label: ctx => {
+              const val = ctx.raw;
+              if (ctx.dataset.label === 'Monthly Goal') return `  Goal: ${fmt(val)}`;
+              const goal = combinedGoal[ctx.dataIndex];
+              const diff = val - goal;
+              const sign = diff >= 0 ? '+' : '';
+              return [`  Total: ${fmt(val)}`, goal > 0 ? `  vs Goal: ${sign}${fmt(diff)}` : ''];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b' } },
+        y: {
+          grid: { color: 'rgba(0,0,0,0.06)' },
+          ticks: { font: { size: 11 }, color: '#64748b', callback: v => '$' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v) }
+        }
+      }
+    }
+  });
+
+  // Goal gauges — full width, side by side, jewel tones, with remaining to goal
+  const niiaGoalPct = Math.min(100, d.niiaYTD / d.niiaAnnualGoal * 100);
+  const jamesGoalPct = Math.min(100, d.jamesYTD / d.jamesAnnualGoal * 100);
+  const niiaRemaining = Math.max(0, d.niiaAnnualGoal - d.niiaYTD);
+  const siiaRemaining = Math.max(0, d.jamesAnnualGoal - d.jamesYTD);
+  $('goal-gauges').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;">
+      <div>
+        <div class="goal-row">
+          <span style="font-size:13px;font-weight:700;color:#1D4ED8">NIIA Annual Goal</span>
+          <span class="goal-pct" style="color:#1D4ED8;font-size:16px;font-weight:900">${niiaGoalPct.toFixed(1)}%</span>
+        </div>
+        <div class="goal-track" style="height:14px;border-radius:2px;margin:8px 0 6px;">
+          <div class="goal-fill" style="width:${niiaGoalPct}%;background:#1D4ED8;border-radius:2px;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span style="font-size:13px;color:var(--text-muted)">${fmt(d.niiaYTD)} of ${fmt(d.niiaAnnualGoal)}</span>
+          <span style="font-size:13px;font-weight:700;color:#1D4ED8">${niiaRemaining > 0 ? fmt(niiaRemaining) + ' remaining' : '✓ Goal reached'}</span>
+        </div>
+      </div>
+      <div>
+        <div class="goal-row">
+          <span style="font-size:13px;font-weight:700;color:#C41E3A">SIIA Annual Goal</span>
+          <span class="goal-pct" style="color:#C41E3A;font-size:16px;font-weight:900">${jamesGoalPct.toFixed(1)}%</span>
+        </div>
+        <div class="goal-track" style="height:14px;border-radius:2px;margin:8px 0 6px;">
+          <div class="goal-fill" style="width:${jamesGoalPct}%;background:#C41E3A;border-radius:2px;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span style="font-size:13px;color:var(--text-muted)">${fmt(d.jamesYTD)} of ${fmt(d.jamesAnnualGoal)}</span>
+          <span style="font-size:13px;font-weight:700;color:#C41E3A">${siiaRemaining > 0 ? fmt(siiaRemaining) + ' remaining' : '✓ Goal reached'}</span>
+        </div>
+      </div>
+    </div>`;
+
+  $('ytd-table-body').innerHTML = d.ytdData.map(r => {
+    const hasData = r.total > 0 || r.james > 0 || r.grandTotal > 0;
+    const niiaHitGoal = r.total > 0 && r.niiaGoal > 0 && r.total >= r.niiaGoal;
+    const siiaHitGoal = r.james > 0 && r.jamesGoal > 0 && r.james >= r.jamesGoal;
+    const divider = `<td style="background:#f0f2f5;width:4px;padding:0;border:none;"></td>`;
+    const niiaTotal = niiaHitGoal
+      ? `<td class="right" style="color:#1D4ED8;font-weight:800;">${fmt(r.total)} ✓</td>`
+      : `<td class="right" style="color:#1D4ED8;font-weight:600;">${fmt(r.total)}</td>`;
+    const siiaTotal = siiaHitGoal
+      ? `<td class="right" style="color:#C41E3A;font-weight:800;">${fmt(r.james)} ✓</td>`
+      : `<td class="right" style="color:#C41E3A;font-weight:600;">${r.james > 0 ? fmt(r.james) : '—'}</td>`;
+    const siiaGoal = `<td class="right muted">${r.jamesGoal > 0 ? fmt(r.jamesGoal) : '—'}</td>`;
+    const rowBg = (niiaHitGoal || siiaHitGoal) ? ' style="background:rgba(241,245,255,0.8);"' : (!hasData ? ' style="opacity:0.35"' : '');
+    const niiaGoalCell = `<td class="right muted">${r.niiaGoal > 0 ? fmt(r.niiaGoal) : '—'}</td>`;
+    return `<tr${hasData ? rowBg : ' style="opacity:0.35"'}>
+      <td style="font-weight:600;">${r.month}</td>
+      <td class="right">${r.pers > 0 ? fmt(r.pers) : '—'}</td>
+      <td class="right">${r.comm > 0 ? fmt(r.comm) : '—'}</td>
+      ${niiaTotal}
+      ${niiaGoalCell}
+      ${divider}
+      ${siiaTotal}
+      ${siiaGoal}
+      <td class="right" style="font-weight:700;">${r.grandTotal > 0 ? fmt(r.grandTotal) : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function policySections(policies, cols) {
+  const sales = policies.filter(r => parseFloat(r[7]) > 0).sort((a,b) => parseFloat(b[7]) - parseFloat(a[7]));
+  const backouts = policies.filter(r => parseFloat(r[7]) < 0).sort((a,b) => parseFloat(a[7]) - parseFloat(b[7]));
+  const fmtRow = (r, showStatus) => {
+    const policy = r[1] || '';
+    const name = r[3] || '';
+    const expiry = r[4] ? String(r[4]).split('T')[0].split(' ')[0] : '';
+    const t = r[5] || '';
+    const status = r[6] || 'New';
+    const amt = parseFloat(r[7]);
+    return `<tr>
+      <td class="muted" style="font-size:11px;">${policy}</td>
+      <td style="font-weight:500;">${name}</td>
+      <td class="muted">${expiry}</td>
+      <td class="muted">${t}</td>
+      ${showStatus ? `<td><span class="badge badge-new">${status}</span></td>` : ''}
+      <td class="right ${amt < 0 ? 'red' : ''}" style="font-weight:600;">${fmt(amt)}</td>
+    </tr>`;
+  };
+  const dividerCols = cols + 1;
+  const salesSection = sales.length ? `
+    <tr><td colspan="${dividerCols}" style="padding:10px 14px 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#1D4ED8;border-bottom:2px solid #1D4ED8;">
+      Sales — ${sales.length} policies &nbsp;·&nbsp; ${fmt(sales.reduce((s,r)=>s+parseFloat(r[7]),0))} total
+    </td></tr>
+    ${sales.map(r => fmtRow(r, cols === 5)).join('')}` : '';
+  const backoutSection = backouts.length ? `
+    <tr><td colspan="${dividerCols}" style="padding:14px 14px 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#C41E3A;border-bottom:2px solid #C41E3A;">
+      Backouts — ${backouts.length} policies &nbsp;·&nbsp; ${fmt(backouts.reduce((s,r)=>s+parseFloat(r[7]),0))} total
+    </td></tr>
+    ${backouts.map(r => fmtRow(r, cols === 5)).join('')}` : '';
+  return (salesSection + backoutSection) || `<tr><td colspan="${dividerCols}" class="muted" style="text-align:center;padding:24px;">No policies found — upload your Excel file to populate</td></tr>`;
+}
+
+function renderLinePolicies(policies, tbodyId) {
+  safeSet(tbodyId, policySections(policies, 5));
+}
+
+function renderPersonPolicies(policies, tbodyId) {
+  safeSet(tbodyId, policySections(policies, 4));
+}
+
+function safeSet(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html;
+}
+
+function tabHero(containerId, ytdSales, ytdRetention, col) {
+  const retColor = ytdRetention >= 0.9 ? '#16a34a' : col;
+  safeSet(containerId, `<div class="hero-row">
+    <div class="hero-card" style="background:${col};border-color:${col};box-shadow:4px 4px 0 ${col}cc;">
+      <div class="hero-label">Year to Date Sales</div>
+      <div class="hero-value">${fmt(ytdSales)}</div>
+      <div class="hero-sub">Total net new sales this year</div>
+    </div>
+    <div class="hero-card" style="background:${retColor};border-color:${retColor};box-shadow:4px 4px 0 ${retColor}cc;">
+      <div class="hero-label">YTD Retention</div>
+      <div class="hero-value">${fmtPct(ytdRetention)}</div>
+      <div class="hero-sub">${ytdRetention >= 0.9 ? '✓ At or above 90% target' : 'Target: 90%'}</div>
+    </div>
+  </div>`);
+}
+function renderComm(d) {
+  const s = d.commSummary;
+  tabHero('comm-hero', s.ytdSales, s.ytdRetention, '#1D4ED8');
+  safeSet('comm-cards',
+    card('MTD Gross New', fmt(s.grossNew), 'gold') +
+    card('MTD Backouts', fmt(s.backouts), 'red') +
+    card('MTD Net Sales', fmt(s.netSales), 'green') +
+    card('MTD Retention', fmtPct(s.retention), s.retention >= 0.9 ? 'green' : 'gold') +
+    card('YTD Gross New', fmt(s.ytdNew), '') +
+    card('YTD Backouts', fmt(s.ytdBackouts), 'red'));
+  renderLinePolicies(d.commPolicies, 'comm-table-body');
+}
+
+function renderPers(d) {
+  const s = d.persSummary;
+  tabHero('pers-hero', s.ytdSales, s.ytdRetention, '#1D4ED8');
+  safeSet('pers-cards',
+    card('MTD Gross New', fmt(s.grossNew), 'gold') +
+    card('MTD Backouts', fmt(s.backouts), 'red') +
+    card('MTD Net Sales', fmt(s.netSales), 'green') +
+    card('MTD Retention', fmtPct(s.retention), s.retention >= 0.9 ? 'green' : 'gold') +
+    card('YTD Gross New', fmt(s.ytdNew), '') +
+    card('YTD Backouts', fmt(s.ytdBackouts), 'red'));
+  renderLinePolicies(d.persPolicies, 'pers-table-body');
+}
+
+function renderKrista(d) {
+  if (!unlocked.has('krista')) return;
+  const s = d.kristaSummary;
+  tabHero('krista-hero', s.ytdSales, s.ytdRetention, '#1D4ED8');
+  safeSet('krista-cards',
+    card('MTD Gross New', fmt(s.grossNew), 'gold') +
+    card('MTD Backouts', fmt(s.backouts), 'red') +
+    card('MTD Net Sales', fmt(s.netSales), 'green') +
+    card('MTD Retention', fmtPct(s.retention), s.retention >= 0.9 ? 'green' : 'gold') +
+    card('This Week Paycheck', fmt(s.paycheck), 'teal') +
+    card('Salary', fmt(s.salary), ''));
+  renderPersonPolicies(d.kristaPolicies, 'krista-table-body');
+}
+
+function renderAmbur(d) {
+  if (!unlocked.has('ambur')) return;
+  const s = d.amburSummary;
+  tabHero('ambur-hero', s.ytdSales, s.ytdRetention, '#1D4ED8');
+  safeSet('ambur-cards',
+    card('MTD Gross New', fmt(s.grossNew), 'gold') +
+    card('MTD Backouts', fmt(s.backouts), 'red') +
+    card('MTD Net Sales', fmt(s.netSales), 'green') +
+    card('MTD Retention', fmtPct(s.retention), s.retention >= 0.9 ? 'green' : 'gold') +
+    card('This Week Paycheck', fmt(s.paycheck), 'teal') +
+    card('NIIA Commission', fmt(s.newSales * 0.005), ''));
+  renderPersonPolicies(d.amburPolicies, 'ambur-table-body');
+}
+
+function renderJames(d) {
+  if (!unlocked.has('james')) return;
+  const s = d.jamesSummary;
+  tabHero('james-hero', s.ytdSales, s.ytdRetention, '#1D4ED8');
+  safeSet('james-cards',
+    card('MTD Gross New', fmt(s.grossNew), 'gold') +
+    card('MTD Backouts', fmt(s.backouts), 'red') +
+    card('MTD Net Sales', fmt(s.netSales), 'green') +
+    card('MTD Renewals', fmt(s.renewals), '') +
+    card('This Week Paycheck', fmt(s.paycheck), 'teal') +
+    card('Renewal Pay', fmt(s.renewalPay), '') +
+    card('New Sales Pay', fmt(s.newSalesPay), ''));
+  renderPersonPolicies(d.jamesPolicies, 'james-table-body');
+}
+
+// ─── File Upload ─────────────────────────────────────────────────────────────
+function processFile(file) {
+  if (!file) return;
+  $('drop-status').textContent = 'Loading…';
+  $('file-status').textContent = 'Loading…';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: false });
+      const data = parseWorkbook(wb);
+      render(data);
+      $('last-updated').textContent = `Updated from: ${file.name}`;
+      $('file-status').textContent = '✓ Loaded';
+      $('drop-status').textContent = '✓ ' + file.name;
+      $('drop-zone').style.background = '#f0fdf4';
+      $('drop-zone').style.borderColor = '#16a34a';
+      setTimeout(() => {
+        $('file-status').textContent = '';
+        $('drop-zone').style.background = '#f0f6ff';
+        $('drop-zone').style.borderColor = '#1D4ED8';
+      }, 4000);
+    } catch(err) {
+      $('file-status').textContent = '❌ Error reading file';
+      $('drop-status').textContent = '❌ Could not read file';
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function handleFileUpload(event) {
+  processFile(event.target.files[0]);
+}
+
+function downloadDashboard() {
+  const html = document.documentElement.outerHTML;
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `commissions-dashboard-${date}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Drag & drop wiring
+const dz = $('drop-zone');
+dz.addEventListener('dragover', e => {
+  e.preventDefault();
+  dz.style.background = '#dbeafe';
+  dz.style.borderColor = '#1D4ED8';
+});
+dz.addEventListener('dragleave', () => {
+  dz.style.background = '#f0f6ff';
+  dz.style.borderColor = '#1D4ED8';
+});
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.style.background = '#f0f6ff';
+  const file = e.dataTransfer.files[0];
+  if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+    processFile(file);
+  } else {
+    $('drop-status').textContent = '❌ Please drop an Excel file';
+  }
+});
+
+// ─── Seed with Built-in Data ──────────────────────────────────────────────────
+const SEED = {
+  ytdData: [
+    {month:'January', pers:173854, comm:18344, total:192198, niiaGoal:153896.39, james:127454, jamesGoal:89772.89, grandTotal:319652},
+    {month:'February', pers:104610, comm:44343.4, total:148953.4, niiaGoal:180646.56, james:123077, jamesGoal:105377.16, grandTotal:272030.4},
+    {month:'March', pers:158638, comm:22791.61, total:181429.61, niiaGoal:235052.18, james:116328, jamesGoal:137113.77, grandTotal:297757.61},
+    {month:'April', pers:165816, comm:220158, total:385974, niiaGoal:190096.57, james:126296, jamesGoal:110889.67, grandTotal:512270},
+    {month:'May', pers:173895, comm:99422, total:273317, niiaGoal:198608.3, james:171271, jamesGoal:115854.84, grandTotal:444588},
+    {month:'June', pers:68942, comm:13967, total:82909, niiaGoal:243008.07, james:62479, jamesGoal:141754.7, grandTotal:145388},
+    {month:'July', pers:0, comm:0, total:0, niiaGoal:218663.97, james:0, jamesGoal:127553.98, grandTotal:0},
+    {month:'August', pers:0, comm:0, total:0, niiaGoal:208596.31, james:0, jamesGoal:121681.18, grandTotal:0},
+    {month:'September', pers:0, comm:0, total:0, niiaGoal:196831.34, james:0, jamesGoal:114818.28, grandTotal:0},
+    {month:'October', pers:0, comm:0, total:0, niiaGoal:181078.06, james:0, jamesGoal:105628.87, grandTotal:0},
+    {month:'November', pers:0, comm:0, total:0, niiaGoal:192970.91, james:0, jamesGoal:112566.37, grandTotal:0},
+    {month:'December', pers:0, comm:0, total:0, niiaGoal:200551.34, james:0, jamesGoal:116988.29, grandTotal:0},
+  ],
+  niiaRetention: 0.918, jamesRetention: 0.873,
+  niiaAnnualGoal: 2400000, jamesAnnualGoal: 1400000,
+  niiaYTD: 1264781.01, jamesYTD: 726905, grandYTD: 1991686.01,
+  commSummary: { grossNew:20600, backouts:6633, netSales:13967, retention:0.67801, ytdNew:459005.01, ytdBackouts:39979, ytdSales:419026.01, ytdRetention:0.9129 },
+  commPolicies: [],
+  persSummary: { grossNew:51600, backouts:13339, netSales:38261, retention:0.7415, ytdNew:683225, ytdBackouts:86053, ytdSales:597172, ytdRetention:0.8740, wk1:23051, wk2:28549 },
+  persPolicies: [],
+  kristaSummary: { grossNew:25822, backouts:1602, netSales:24220, retention:0.9380, ytdNew:191054, ytdSales:182604, ytdRetention:0.9558, paycheck:5619.47, newSales:24220, salary:3000, wk1:7837, wk2:17985 },
+  kristaPolicies: [],
+  amburSummary: { grossNew:6742, backouts:281, netSales:6461, retention:0.9583, ytdNew:70996, ytdSales:65979, ytdRetention:0.9293, paycheck:4236.27, newSales:6461, wk1:4307, wk2:2435 },
+  amburPolicies: [],
+  jamesSummary: { grossNew:68628, backouts:6149, netSales:62479, retention:0.9104, renewals:78145, ytdNew:832301, ytdBackouts:105396, ytdSales:726905, ytdRetention:0.8734, paycheck:5311.64, newSalesPay:3748.74, renewalPay:1562.9, wk1:44982, wk2:23646 },
+  jamesPolicies: [],
+};
+
+render(SEED);
+</script>
+</body>
+</html>
